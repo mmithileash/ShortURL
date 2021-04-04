@@ -1,0 +1,38 @@
+version: '3.5'
+services:
+  short_url:
+    build: .
+    image: "short_url:latest"
+    ports:
+      - "80:80"
+    volumes:
+      - ./server:/app/server
+      - ./tests:/app/server/tests
+    command: /start-reload.sh
+    environment:
+      MODULE_NAME: "server.main"
+      SHORT_URL_LENGTH: 7
+      MONGO_DB_HOST: ${MONGO_DB_HOST:-mongodb}
+      MONGO_DB_PORT: ${MONGO_DB_PORT:-27017}
+      DOMAIN_NAME: ${DOMAIN_NAME:-www.shorter.com}
+    depends_on:
+      - mongodb
+
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+
+#  db:
+#    image: library/mysql:8.0
+#    environment:
+#      MYSQL_DATABASE: 'genuity_db'
+#      MYSQL_USER: 'user'
+#      MYSQL_PASSWORD: 'password'
+#      MYSQL_ROOT_PASSWORD: 'password'
+#    ports:
+#      - '3306:3306'
+#    expose:
+#      - '3306'
+#    volumes:
+#      - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql

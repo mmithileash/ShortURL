@@ -1,6 +1,19 @@
 # **URL Shortener**
 This is a FastAPI project that will take a given url and return a shorter indexed URL by
-encoding the URL with base66 encoding. 
+encoding the URL with a base66 encoding. With this approach we are using a counter to encode 
+the incoming shorten url requests with valid url characters. By using a hashing mechanism here 
+the given URL would not use up all of the valid URL characters and hashing could also potentially 
+lead to lot of hash collisions. Using a counter will help with that issue but could potentially lead to 
+problems when scaling the solution horizontally across multiple machines. Since we are using MongoDB
+to store the index, we could possibly scale up the web service but the scaling-up will be bottle necked 
+to MongoDB. An alternative approach would be to use a co-ordination service such as zookeeper to manage 
+a range of counters for each horizontally scaled instance which will help scale up better. 
+
+If I had more time I could have included a caching system such as Redis to
+improve the response times. In addition the provided solution currently doesn't include 
+any load balancers when this service is scaled horizontally; this is another thing I would
+have liked to have included in this solution.
+
 
 # **Tech stack**
 * Python 3.8

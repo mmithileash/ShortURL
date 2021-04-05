@@ -6,3 +6,4 @@ venv/
 venv*/
 .DS_Store
 .idea/
+deploy_script/AnsibleEC2.pem

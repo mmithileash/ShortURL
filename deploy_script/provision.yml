@@ -1,0 +1,105 @@
+---
+
+- name: AWS-Docker-Ansible Setup
+  hosts: localhost
+  connection: local
+  gather_facts: False
+
+
+  vars_files:
+    - vars/aws-credentials.yml
+    - vars/specs.yml
+
+  tasks:
+  - name: Create security group
+    ec2_group:
+      name: AWS-Docker-Ansible-group
+      description: "A Security group"
+      region: "{{aws_region}}"
+      vpc_id: "{{ vpc_id }}"
+      aws_access_key: "{{ AWS_ACCESS_KEY_ID }}"
+      aws_secret_key: "{{ AWS_SECRET_ACCESS_KEY }}"
+      rules:
+        - proto: tcp
+          from_port: 22
+          to_port: 22
+          cidr_ip: "{{ cidr_range }}"
+        - proto: tcp
+          from_port: 80
+          to_port: 80
+          cidr_ip: "{{ cidr_range }}"
+      rules_egress:
+      - proto: all
+        from_port: 0
+        to_port: 65535
+        cidr_ip: "{{ cidr_range }}"
+    register: firewall
+
+
+  - name: Create EC-2 instance
+    ec2:
+      aws_access_key: "{{ AWS_ACCESS_KEY_ID }}"
+      aws_secret_key: "{{ AWS_SECRET_ACCESS_KEY }}"
+      vpc_subnet_id: "{{ vpc_subnet_id }}"
+      region: "{{ aws_region }}"
+      group_id: "{{ firewall.group_id }}"
+      instance_type: "{{ instance_type }}"
+      image: "{{ ami_id }}"
+      key_name: "{{ key_name }}"
+      instance_tags:
+            Name: "{{ tags_used }}"
+      exact_count: 1
+      count_tag:
+            Name: "{{ tags_used }}"
+      wait: true
+      assign_public_ip: yes
+    register: ec2
+
+  - name: Add new instance to host group
+    add_host:
+            hostname: "{{ item.public_ip }}"
+            groupname: webserver
+    loop: "{{ ec2.instances }}"
+
+  - name: Wait for SSH to come up
+    wait_for:
+            host: "{{ item.public_dns_name }}"
+            port: 22
+            state: started
+    loop: "{{ ec2.instances }}"
+
+
+- name: Configure EC2 instance
+  hosts: webserver
+  connection: ssh
+  gather_facts: False
+  remote_user: ubuntu
+
+  tasks:
+
+  - name: Update the machine
+    command: sudo apt-get update
+
+  - name: Installing Curl
+    command: sudo apt-get install curl -y
+
+  - name: Installing docker
+    command: sudo apt install docker.io -y
+
+  - name: Adding user to group
+    command: sudo usermod -aG docker ${USER}
+
+  - name: Restarting docker service
+    command: sudo service docker restart
+
+  - name: Installing Python Pip
+    command: sudo apt-get install python3-pip --assume-yes
+
+  - name: Installing Docker compose
+    command: sudo pip3 install docker-compose
+
+  - name: Git clone repo
+    command: git clone https://github.com/mmithileash/ShortURL.git
+
+  - name: Run docker compose
+    command: sudo docker-compose -f ShortURL/docker-compose.yml up -d
